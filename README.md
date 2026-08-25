@@ -1,5 +1,9 @@
 # News Intelligence Platform
 
+[![CI](https://github.com/Naxter/news-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Naxter/news-platform/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/Node-%3E%3D20-brightgreen.svg)](package.json)
+
 A local-first dashboard that turns a set of RSS/Atom feeds and news pages into a searchable,
 categorized, trend-aware view of what you follow — and, optionally, maps the companies in that
 coverage to stock tickers and scores which ones your own news is moving on before the market.
