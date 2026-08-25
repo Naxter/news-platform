@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>News Intelligence Platform</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-mark">N</div>
+          <div>
+            <h1>Newsroom</h1>
+            <p>Signal intelligence</p>
+          </div>
+        </div>
+        <nav class="nav-tabs" id="navTabs" aria-label="Main views">
+          <button type="button" class="nav-tab active" data-view="dashboard">Dashboard</button>
+          <button type="button" class="nav-tab" data-view="trends">Trends</button>
+          <button type="button" class="nav-tab" data-view="report">Report</button>
+          <button type="button" class="nav-tab" data-view="market">Market</button>
+          <button type="button" class="nav-tab" data-view="settings">Settings</button>
+        </nav>
+        <div class="topbar-actions">
+          <span id="lastCollected" class="muted-pill">Never collected</span>
+          <button id="failuresPill" class="muted-pill failures hidden" type="button" title="Show collection failures">0 failures</button>
+          <button id="collectButton" class="full-button collect" type="button">Collect</button>
+          <button id="resetButton" class="ghost-button" type="button">Reset all</button>
+        </div>
+      </header>
+
+      <div id="viewDashboard" class="view active">
+        <div class="dashboard-grid">
+          <aside class="sidebar">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Sources</h2>
+                <a class="mini-link" href="/api/sources/opml" download="sources.opml">Export OPML</a>
+              </div>
+              <details class="add-details">
+                <summary>+ Add source</summary>
+                <form id="sourceForm" class="stacked-form">
+                  <input id="sourceName" name="name" placeholder="Source name">
+                  <input id="sourceUrl" name="url" type="url" placeholder="https://example.com/rss">
+                  <select id="sourceType" name="type" aria-label="Source type">
+                    <option value="auto">Auto detect</option>
+                    <option value="rss">RSS or Atom</option>
+                    <option value="web">News page</option>
+                  </select>
+                  <button type="submit" class="full-button">Add source</button>
+                </form>
+              </details>
+              <div id="sourceList" class="source-list"></div>
+              <details class="opml-details">
+                <summary>OPML import</summary>
+                <textarea id="opmlText" rows="4" placeholder="Paste OPML XML here"></textarea>
+                <input id="opmlFile" type="file" accept=".opml,.xml,text/xml,text/x-opml" aria-label="OPML file">
+                <button id="importOpml" class="ghost-button" type="button">Import OPML</button>
+              </details>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Brief Drop</h2>
+              </div>
+              <details class="add-details">
+                <summary>+ Add brief</summary>
+                <form id="manualForm" class="stacked-form">
+                  <input id="manualTitle" name="title" placeholder="Brief title">
+                  <input id="manualUrl" name="url" type="url" placeholder="Link (optional)">
+                  <textarea id="manualBody" name="body" rows="4" placeholder="Paste an article, note, or field update"></textarea>
+                  <button type="submit" class="full-button secondary">Add brief</button>
+                </form>
+              </details>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Watchlists</h2>
+              </div>
+              <details class="add-details">
+                <summary>+ New watchlist</summary>
+                <form id="watchlistForm" class="stacked-form">
+                  <input id="watchlistName" name="name" placeholder="Watchlist name">
+                  <input id="watchlistKeywords" name="keywords" placeholder="keywords, comma separated">
+                  <select id="watchlistCategory" aria-label="Watchlist category"></select>
+                  <button type="submit" class="full-button secondary">Create watchlist</button>
+                </form>
+              </details>
+              <div id="watchlistList" class="watchlist-list"></div>
+            </section>
+          </aside>
+
+          <main class="dashboard-main">
+            <header class="view-heading">
+              <p class="eyebrow">Local intelligence workspace</p>
+              <h2>Gathered news, sorted into signals</h2>
+            </header>
+
+            <section class="panel brief-panel hidden" id="briefPanel" aria-label="Morning brief">
+              <div class="panel-heading">
+                <div class="brief-headline">
+                  <h2 id="briefTitle">Morning Brief</h2>
+                  <span class="muted small" id="briefMeta"></span>
+                </div>
+                <button id="briefRegenerate" class="ghost-button small" type="button">Regenerate</button>
+              </div>
+              <div id="briefContent" class="brief-content"></div>
+            </section>
+
+            <section class="metrics-grid" aria-label="News metrics">
+              <article class="metric">
+                <span>Total stories</span>
+                <strong id="metricArticles">0</strong>
+              </article>
+              <article class="metric">
+                <span>Sources</span>
+                <strong id="metricSources">0</strong>
+              </article>
+              <article class="metric">
+                <span>Starred</span>
+                <strong id="metricStarred">0</strong>
+              </article>
+              <article class="metric">
+                <span>Watch signals</span>
+                <strong id="metricWatch">0</strong>
+              </article>
+            </section>
+
+            <section class="workspace-grid">
+              <section class="content-column">
+                <div class="toolbar">
+                  <div class="toolbar-primary">
+                    <input id="searchInput" type="search" placeholder="Search stories">
+                    <button id="filtersToggle" class="ghost-button small" type="button" aria-expanded="false" aria-controls="toolbarAdvanced">Filters</button>
+                  </div>
+                  <div class="segmented" id="categoryFilters"></div>
+                  <div class="toolbar-advanced hidden" id="toolbarAdvanced">
+                    <div class="filter-row">
+                      <select id="monthFilter" aria-label="Month filter"></select>
+                      <select id="sourceFilter" aria-label="Source filter"></select>
+                      <select id="sentimentFilter" aria-label="Sentiment filter">
+                        <option value="All">All sentiment</option>
+                        <option value="positive">Positive</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="watch">Watch</option>
+                      </select>
+                    </div>
+                    <div class="toggle-row">
+                      <button id="unreadToggle" class="ghost-button small" type="button">Unread only</button>
+                      <button id="starredToggle" class="ghost-button small" type="button">Starred only</button>
+                      <select id="sortSelect" class="sort-select" aria-label="Sort order">
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div id="statusLine" class="status-line"></div>
+                <div id="articleList" class="article-list"></div>
+                <nav id="pager" class="pager hidden" aria-label="Article pages"></nav>
+              </section>
+
+              <aside class="insight-column">
+                <section class="panel hidden" id="topChancenPanel">
+                  <div class="panel-heading">
+                    <h2>Top Opportunities</h2>
+                    <button id="topChancenMore" class="mini-link" type="button">View all →</button>
+                  </div>
+                  <div id="topChancen" class="top-chancen"></div>
+                </section>
+
+                <section class="panel">
+                  <div class="panel-heading">
+                    <h2>Category Mix</h2>
+                  </div>
+                  <div id="categoryMix" class="bar-list"></div>
+                </section>
+              </aside>
+            </section>
+          </main>
+        </div>
+      </div>
+
+      <div id="viewReport" class="view">
+        <main class="view-main">
+          <header class="view-heading">
+            <p class="eyebrow">Reporting</p>
+            <h2>Report Studio</h2>
+          </header>
+          <div class="report-layout">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Configure</h2>
+              </div>
+              <form id="reportForm" class="report-form">
+                <div class="report-field">
+                  <span class="field-label">Categories</span>
+                  <div id="reportCategoryChips" class="chip-select"></div>
+                </div>
+                <label>
+                  Month
+                  <select id="reportMonth"></select>
+                </label>
+                <label>
+                  Focus
+                  <select id="reportFocus">
+                    <option value="executive">Executive brief</option>
+                    <option value="source">Source analysis</option>
+                    <option value="watchlist">Risk watchlist</option>
+                    <option value="opportunities">Market opportunities</option>
+                  </select>
+                </label>
+                <label>
+                  Template
+                  <select id="reportTemplate">
+                    <option value="brief">Brief</option>
+                    <option value="standard" selected>Standard</option>
+                    <option value="detailed">Detailed</option>
+                  </select>
+                </label>
+                <label class="check-row">
+                  <input id="reportUseAi" type="checkbox">
+                  Use AI narrative
+                </label>
+                <span id="reportAiHint" class="muted small"></span>
+                <button type="submit" class="full-button">Generate report</button>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Output</h2>
+                <div class="report-actions">
+                  <button id="copyReport" class="ghost-button small" type="button" disabled>Copy</button>
+                  <button id="downloadReport" class="ghost-button small" type="button" disabled>Download .md</button>
+                </div>
+              </div>
+              <article id="reportOutput" class="report-output"></article>
+              <p id="reportPlaceholder" class="muted small">Choose at least one category, then generate a report.</p>
+            </section>
+          </div>
+        </main>
+      </div>
+
+      <div id="viewTrends" class="view">
+        <main class="view-main">
+          <header class="view-heading">
+            <p class="eyebrow">Signal analytics</p>
+            <h2>Trends &amp; source health</h2>
+          </header>
+          <div class="trends-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Volume by month</h2>
+              </div>
+              <div id="trendVolume" class="bar-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Sentiment share</h2>
+              </div>
+              <div id="trendSentiment" class="sentiment-list"></div>
+            </section>
+
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Category trends</h2>
+              </div>
+              <div id="trendCategories" class="trend-chart"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Rising keywords</h2>
+              </div>
+              <div id="trendKeywords" class="keyword-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Top entities</h2>
+              </div>
+              <div id="trendEntities" class="entity-columns"></div>
+            </section>
+
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Source health</h2>
+              </div>
+              <div id="trendHealth" class="table-wrap"></div>
+            </section>
+
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Collection log</h2>
+              </div>
+              <div id="trendCollections" class="log-list"></div>
+            </section>
+          </div>
+        </main>
+      </div>
+
+      <div id="viewMarket" class="view">
+        <main class="view-main">
+          <header class="view-heading">
+            <p class="eyebrow">News × Prices</p>
+            <h2>Market &amp; watched instruments</h2>
+          </header>
+
+          <p class="disclaimer-banner">
+            <strong>Not investment advice, no recommendation.</strong>
+            A personal digest of public news and delayed/EOD price data.
+            Signals measure your own feeds, not the market.
+          </p>
+
+          <div class="market-statusbar">
+            <span id="marketStatus" class="muted-pill">No price data</span>
+            <span id="marketSchedulerWarning" class="muted-pill warning hidden"
+              title="Without a collection schedule, prices refresh only manually (Settings → Collection)">
+              Schedule off — no automatic refresh</span>
+            <button id="marketRefreshButton" class="full-button collect" type="button">Refresh prices</button>
+          </div>
+
+          <section class="panel market-add-panel">
+            <div class="panel-heading">
+              <h2>Watch an instrument</h2>
+            </div>
+            <div class="market-search">
+              <input id="marketSearchInput" type="search" autocomplete="off"
+                placeholder="Search companies (e.g. Siemens Energy) …">
+              <div id="marketSearchResults" class="market-search-results hidden"></div>
+            </div>
+            <details class="opml-details">
+              <summary>Enter a ticker directly</summary>
+              <div class="button-row">
+                <input id="marketTickerInput" placeholder="e.g. IFX.DE or NVDA" autocomplete="off">
+                <button id="marketTickerAdd" class="ghost-button" type="button">Add</button>
+              </div>
+            </details>
+            <div id="marketStarterChips" class="chip-select"></div>
+          </section>
+
+          <div id="marketInstruments"></div>
+        </main>
+      </div>
+
+      <div id="viewSettings" class="view">
+        <main class="view-main">
+          <header class="view-heading">
+            <p class="eyebrow">Configuration</p>
+            <h2>Platform settings</h2>
+          </header>
+          <div class="settings-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Collection</h2>
+              </div>
+              <form id="collectionForm" class="stacked-form">
+                <label>
+                  Auto-collect interval (minutes, 0 = off)
+                  <input id="settingAutoCollect" type="number" min="0" max="1440" step="1">
+                </label>
+                <label>
+                  Max stored articles
+                  <input id="settingMaxArticles" type="number" min="100" max="20000" step="50">
+                </label>
+                <button type="submit" class="full-button">Save collection settings</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>AI enrichment</h2>
+              </div>
+              <form id="aiForm" class="stacked-form">
+                <label class="check-row">
+                  <input id="aiEnabled" type="checkbox">
+                  Enable AI enrichment
+                </label>
+                <label>
+                  Model
+                  <input id="aiModel" placeholder="claude-opus-4-8" autocomplete="off">
+                </label>
+                <label>
+                  Max articles per collect
+                  <input id="aiMaxPer" type="number" min="1" max="100" step="1">
+                </label>
+                <label>
+                  API key
+                  <input id="aiKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+                </label>
+                <div class="button-row">
+                  <button type="submit" class="full-button">Save AI settings</button>
+                  <button id="clearAiKey" class="ghost-button" type="button">Clear key</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Morning Brief</h2>
+              </div>
+              <form id="briefForm" class="stacked-form">
+                <label class="check-row">
+                  <input id="briefEnabled" type="checkbox">
+                  Daily brief on a schedule
+                </label>
+                <label>
+                  Time of day
+                  <input id="briefTime" type="time" value="07:00">
+                </label>
+                <label>
+                  Look back over (hours)
+                  <input id="briefLookback" type="number" min="1" max="168" step="1">
+                </label>
+                <label>
+                  Max stories in the brief
+                  <input id="briefMaxStories" type="number" min="3" max="30" step="1">
+                </label>
+                <label class="check-row">
+                  <input id="briefPush" type="checkbox">
+                  Also push to phone (needs an ntfy webhook)
+                </label>
+                <span id="briefAiHint" class="muted small"></span>
+                <div class="button-row">
+                  <button type="submit" class="full-button">Save brief settings</button>
+                  <button id="briefGenerateNow" class="ghost-button" type="button">Generate now</button>
+                </div>
+              </form>
+              <p class="muted small">The brief runs only while the server is up. It's LLM-written when
+                an API key is present (env <code>ANTHROPIC_API_KEY</code> or the AI key above), otherwise
+                a readable heuristic version. It does not require per-article AI enrichment.</p>
+            </section>
+
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Categories</h2>
+                <button id="addCategoryRow" class="ghost-button small" type="button">Add category</button>
+              </div>
+              <div id="categoryRows" class="category-rows"></div>
+              <div class="button-row">
+                <button id="saveCategories" class="full-button" type="button">Save categories</button>
+                <button id="reapplyCategories" class="ghost-button" type="button" title="Re-run categorization on all stored stories">Re-apply categories</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Sentiment words</h2>
+              </div>
+              <form id="sentimentForm" class="stacked-form">
+                <label>
+                  Positive words (comma separated)
+                  <textarea id="sentimentPositive" rows="3"></textarea>
+                </label>
+                <label>
+                  Negative words (comma separated)
+                  <textarea id="sentimentNegative" rows="3"></textarea>
+                </label>
+                <button type="submit" class="full-button">Save sentiment words</button>
+              </form>
+              <button id="germanSentimentSeed" class="ghost-button" type="button"
+                title="Merge curated German business terms (~40 positive / ~40 negative) into the lists">
+                Add German sentiment terms</button>
+              <p class="muted small">Recommended for the market signals: afterwards run "Re-apply categories" so existing stories are re-scored.</p>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Webhooks</h2>
+              </div>
+              <form id="webhookForm" class="stacked-form">
+                <input id="webhookUrl" type="url" placeholder="https://example.com/hook or https://ntfy.sh/my-topic">
+                <select id="webhookFormat" aria-label="Webhook format">
+                  <option value="json">JSON (server/automation)</option>
+                  <option value="ntfy">ntfy (phone push, market alerts only)</option>
+                </select>
+                <button type="submit" class="full-button secondary">Add webhook</button>
+              </form>
+              <div id="webhookList" class="webhook-list"></div>
+              <p class="muted small">JSON webhooks receive all events (collection, price refresh, alerts).
+                ntfy webhooks receive only market alerts as a readable push — enter a topic URL from ntfy.sh or your
+                own ntfy instance, install the app on your phone, done.</p>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>External API</h2>
+              </div>
+              <div class="stacked-form">
+                <label>
+                  API token (empty = disabled)
+                  <input id="apiToken" autocomplete="off" placeholder="Generate or paste a token">
+                </label>
+                <div class="button-row">
+                  <button id="generateToken" class="ghost-button" type="button">Generate</button>
+                  <button id="saveToken" class="full-button" type="button">Save token</button>
+                </div>
+                <pre id="tokenExample" class="code-block"></pre>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Market</h2>
+              </div>
+              <form id="marketForm" class="stacked-form">
+                <label class="check-row">
+                  <input id="marketEnabled" type="checkbox">
+                  Enable market data
+                </label>
+                <label>
+                  Refresh prices at most every (minutes)
+                  <input id="marketMinRefresh" type="number" min="30" max="1440" step="10">
+                </label>
+                <label>
+                  Max watched instruments
+                  <input id="marketMaxInstruments" type="number" min="1" max="100" step="1">
+                </label>
+                <label>
+                  Price history (trading days)
+                  <input id="marketHistoryDays" type="number" min="90" max="1000" step="10">
+                </label>
+                <label class="check-row">
+                  <input id="marketPreferXetra" type="checkbox">
+                  Prefer XETRA listing
+                </label>
+                <label>
+                  EUR benchmark
+                  <select id="marketBenchmark">
+                    <option value="^GDAXI">DAX (^GDAXI)</option>
+                    <option value="^TECDAX">TecDAX (^TECDAX)</option>
+                  </select>
+                </label>
+                <label class="check-row">
+                  <input id="marketAiMapping" type="checkbox">
+                  AI mapping of unknown companies (uses the AI key)
+                </label>
+                <label class="check-row">
+                  <input id="marketAlertsEnabled" type="checkbox">
+                  Alerts when the score is exceeded (via webhook)
+                </label>
+                <label>
+                  Alert from score
+                  <input id="marketAlertMinScore" type="number" min="1" max="100" step="1">
+                </label>
+                <button type="submit" class="full-button">Save market settings</button>
+              </form>
+              <p class="muted small">Price data: Yahoo Finance (EOD/delayed). Refresh runs after each scheduled collection.</p>
+            </section>
+
+            <section class="panel wide">
+              <div class="panel-heading">
+                <h2>Finance source pack</h2>
+                <button id="addAllFeeds" class="ghost-button small" type="button">Add all</button>
+              </div>
+              <p class="muted small">Curated, checked finance feeds (DE + EN) for better market signals.
+                <strong>Note:</strong> new sources shift all news baselines — the signals need ~90 days to adjust.</p>
+              <div id="feedPackList" class="feed-pack-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>Data</h2>
+              </div>
+              <div class="stacked-form">
+                <a class="ghost-button center" href="/api/export" download="news-platform-export.json">Export JSON</a>
+                <input id="importFile" type="file" accept=".json,application/json" aria-label="Import JSON file">
+                <button id="importData" class="ghost-button" type="button">Import JSON</button>
+                <button id="settingsReset" class="ghost-button danger" type="button">Clear all data</button>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

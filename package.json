@@ -1,0 +1,14 @@
+{
+  "name": "news-intelligence-platform",
+  "version": "0.1.0",
+  "description": "Self-hosted news aggregation and analysis dashboard with an optional market-signal layer, built on Node.js built-ins only.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}
